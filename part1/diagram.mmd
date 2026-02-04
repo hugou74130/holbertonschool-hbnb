@@ -1,18 +1,21 @@
 classDiagram
 
     namespace PresentationLayer{
-        class
+        class APIsREST
+        class route_endpoints
+        class requêtes_HTTP
 
     }
 
-    namespace Business{
-        class
-    }
-
-    namespace Logic{
-        class
+    namespace BusinessLogicLayer{
+        class model(User,Place,Review,Amenity)
+        class jobs_rules
+        class complex_validation
     }
     
-    namespcae Persitence{
-        class
+    namespace PersitenceLayers{
+        class repositories
+        class BDD_acces
+        class requet SQL 
+          
     }
