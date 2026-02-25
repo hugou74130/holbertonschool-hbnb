@@ -1,11 +1,6 @@
-from flask import Flask
-from flask_restx import Api
+# redirect create_app to the app package implementation
+from app import create_app
 
-def create_app():
-    app = Flask(__name__)
-    api = Api(app, version='1.0', title='HBnB API', description='HBnB Application API', doc='/api/v1/')
-
-    # Placeholder for API namespaces (endpoints will be added later)
-    # Additional namespaces for places, reviews, and amenities will be added later
-
-    return app
+# this module exists to allow `from app import create_app` when
+# the top-level directory is on sys.path (e.g. when running tests or
+# `python -m run`).

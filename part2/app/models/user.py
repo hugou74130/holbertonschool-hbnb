@@ -105,3 +105,21 @@ class User(BaseModel):
             "is_admin": self.is_admin,      # Ajoute info admin
         })
         return d  # Retourne le dictionnaire prêt pour JSON/API
+from .base_model import BaseModel
+
+
+class User(BaseModel):
+    def __init__(self, **kwargs):
+        # required attributes
+        self.email = kwargs.get('email')
+        self.password = kwargs.get('password')
+        self.first_name = kwargs.get('first_name', '')
+        self.last_name = kwargs.get('last_name', '')
+        super().__init__(**kwargs)
+
+    def to_dict(self):
+        d = super().to_dict()
+        # never expose password in API responses
+        if 'password' in d:
+            d.pop('password')
+        return d

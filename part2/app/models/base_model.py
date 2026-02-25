@@ -60,3 +60,30 @@ class BaseModel:
             # Date de dernière modification convertie en chaîne ISO standard
             'updated_at': self.updated_at.isoformat()
         }
+import uuid
+from datetime import datetime
+
+
+class BaseModel:
+    def __init__(self, **kwargs):
+        # if an id is provided use it, else generate a new one
+        self.id = kwargs.get('id', str(uuid.uuid4()))
+        now = datetime.utcnow().isoformat()
+        self.created_at = kwargs.get('created_at', now)
+        self.updated_at = kwargs.get('updated_at', now)
+        # load any additional fields
+        for key, value in kwargs.items():
+            if key not in {'id', 'created_at', 'updated_at'}:
+                setattr(self, key, value)
+
+    def update(self, data: dict):
+        """Update attributes and set updated_at timestamp."""
+        for key, value in data.items():
+            if key in {'id', 'created_at'}:
+                continue
+            setattr(self, key, value)
+        self.updated_at = datetime.utcnow().isoformat()
+
+    def to_dict(self):
+        """Return a dictionary representation of the model."""
+        return self.__dict__.copy()
