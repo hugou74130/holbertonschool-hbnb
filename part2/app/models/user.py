@@ -1,126 +1,115 @@
-# Import du module regex pour valider les emails
-import re  
-# Import du module hashlib pour hasher les mots de passe
-import hashlib  
-# Import de la classe parent BaseModel pour hériter des attributs communs
-from part2.app.models.base_model import BaseModel
-
+from app.models.base_model import BaseModel
+# On importe BaseModel pour que User puisse en hériter
+import hashlib
+# hashlib est un module Python standard pour hacher des données (mots de passe)
 
 class User(BaseModel):
-    # Chaque User peut avoir des Places et écrire des Reviews
+    # User hérite de BaseModel
+    # Il récupère automatiquement: id, created_at, updated_at, crud_profile
+    # ainsi que les méthodes: save(), to_dict(), update()
 
-    def __init__(self, first_name=None, last_name=None, email=None,
-                 password=None, is_admin=False, **kwargs):
-        """Initialise un utilisateur avec validation et hash du mot de passe.
+    def __init__(self, first_name, last_name, email, password, is_admin=False):
+        super().__init__()
+        # super().__init__() appelle le constructeur de BaseModel
+        # Initialise id, created_at, updated_at, crud_profile
 
-        Cette signature accepte les champs explicites pour les créations
-        normales ainsi que ``**kwargs`` lorsqu'on reconstruit un objet à
-        partir de la persistence (id, created_at, updated_at, etc.).
-        """
-        super().__init__(**kwargs)  # Appelle le constructeur de BaseModel
+        # --- Validations ---
+        if not first_name or len(first_name) > 50:
+            raise ValueError("first_name is required and must be under 50 characters")
+            # not first_name = True si first_name est None ou ""
+            # len(first_name) > 50 vérifie la longueur maximale
 
-        # Affectations passant par les setters qui valident
-        if first_name is not None:
-            self.first_name = first_name
-        if last_name is not None:
-            self.last_name = last_name
-        if email is not None:
-            self.email = email
+        if not last_name or len(last_name) > 50:
+            raise ValueError("last_name is required and must be under 50 characters")
 
-        # Le mot de passe peut arriver en clair lors de la création;
-        # on ne stocke que le hash. Ne pas remplacer s'il existe déjà via
-        # kwargs (reconstruction depuis le stockage).
-        if password is not None:
-            self.password_hash = self._hash_password(password)
-        elif "password_hash" in kwargs:
-            # si le hash était fourni par kwargs, on le conserve
-            self.password_hash = kwargs.get("password_hash")
+        if not email or "@" not in email:
+            raise ValueError("A valid email is required")
+            # "@" not in email vérifie qu'il y a bien un @ dans l'email
+
+        if not password:
+            raise ValueError("password is required")
+
+        # --- Assignation des attributs ---
+        self.first_name = first_name
+        self.last_name = last_name
+        self.email = email
+        self.password_hash = self._hash_password(password)
+        # On ne stocke jamais le mot de passe en clair !
+        # On stocke uniquement son hash
 
         self.is_admin = is_admin
+        # False par défaut, True uniquement pour les administrateurs
 
-    # ── Helpers de validation
-
-    @staticmethod
-    def _validate_name(value, field):
-        """Vérifie que le nom est une string non vide de max 50 caractères."""
-        if not value or not isinstance(value, str):  # Vérifie qu’il existe et est une string
-            raise ValueError(f"{field} is required.")  
-        if len(value) > 50:  # Vérifie la longueur max
-            raise ValueError(f"{field} must be 50 characters or fewer.")
-        return value.strip()  # Supprime les espaces inutiles en début/fin
-
-    @staticmethod
-    def _validate_email(email):
-        """Vérifie le format email avec une regex."""
-        pattern = r"^[\w\.-]+@[\w\.-]+\.\w{2,}$"  # Regex simple pour email
-        if not re.match(pattern, email):  # Vérifie si ça correspond
-            raise ValueError(f"Invalid email format: {email}")
-        return email.lower()  # Retourne l’email en minuscules
-
-    @staticmethod
-    def _hash_password(password):
-        """Retourne le hash SHA-256 du mot de passe."""
-        if not password:  # Vérifie que le mot de passe existe
-            raise ValueError("Password is required.")
-        # Encode la string en bytes puis calcule le hash SHA-256 et retourne en hexadécimal
+    def _hash_password(self, password):
+        """Hash le mot de passe en SHA256
+        
+        Le _ devant le nom indique que c'est une méthode privée
+        Elle ne doit pas être appelée depuis l'extérieur de la classe
+        
+        Exemple:
+        _hash_password("secret") → "2bb80d537b1da3e38bd30361aa855686..."
+        """
         return hashlib.sha256(password.encode()).hexdigest()
+        # .encode() convertit la string en bytes (nécessaire pour hashlib)
+        # .hexdigest() retourne le hash sous forme de string hexadécimale
 
-    # ── Setters avec validation (pattern @property)
-
-    @property
-    def first_name(self):
-        """Retourne le prénom de l'utilisateur."""
-        return self._first_name
-
-    @first_name.setter
-    def first_name(self, value):
-        """Valide et assigne le prénom via _validate_name."""
-        self._first_name = self._validate_name(value, "first_name")
-
-    @property
-    def last_name(self):
-        """Retourne le nom de famille."""
-        return self._last_name
-
-    @last_name.setter
-    def last_name(self, value):
-        """Valide et assigne le nom via _validate_name."""
-        self._last_name = self._validate_name(value, "last_name")
-
-    @property
-    def email(self):
-        """Retourne l'email de l'utilisateur."""
-        return self._email
-
-    @email.setter
-    def email(self, value):
-        """Valide et assigne l'email via _validate_email."""
-        self._email = self._validate_email(value)
-
-    # ── Méthodes métier ──────────────────────────────────────────────────────
+    def register(self):
+        """Enregistre l'utilisateur en mettant à jour son crud_profile"""
+        self.crud_profile = "registered"
+        self.save()
+        # save() met à jour updated_at
 
     def update_profile(self, data):
-        """Autorise uniquement la mise à jour des champs autorisés du profil."""
-        allowed = {"first_name", "last_name", "email"}  # Champs modifiables
-        # Appelle update() de BaseModel seulement sur les champs autorisés
-        self.update({k: v for k, v in data.items() if k in allowed})
+        """Met à jour uniquement les champs autorisés du profil
+        
+        Exemple: user.update_profile({"first_name": "Jane"})
+        """
+        allowed = ['first_name', 'last_name', 'email']
+        # Liste blanche des champs modifiables
+        # password_hash et is_admin ne sont pas modifiables ici
+
+        filtered = {k: v for k, v in data.items() if k in allowed}
+        # Dictionnaire en compréhension : ne garde que les clés autorisées
+        # ex: {"first_name": "Jane", "password": "hack"} → {"first_name": "Jane"}
+
+        self.update(filtered)
+        # Appelle BaseModel.update() avec les données filtrées
 
     def change_password(self, new_password):
-        """Hash le nouveau mot de passe et remplace l'ancien."""
-        self.password_hash = self._hash_password(new_password)  # Hash
-        self.save()  # Met à jour updated_at
+        """Change le mot de passe de l'utilisateur"""
+        if not new_password:
+            raise ValueError("new password is required")
+        self.password_hash = self._hash_password(new_password)
+        # Hache le nouveau mot de passe avant de le stocker
+        self.save()
+
+    def delete(self):
+        """Marque l'utilisateur comme supprimé"""
+        self.crud_profile = "deleted"
+        self.save()
 
     def authenticate(self, password):
-        """Compare le hash du mot de passe fourni avec celui stocké."""
-        return self.password_hash == self._hash_password(password)  # True/False
+        """Vérifie si le mot de passe fourni est correct
+        
+        Retourne True si correct, False sinon
+        Exemple: user.authenticate("secret") → True
+        """
+        return self.password_hash == self._hash_password(password)
+        # On hache le mot de passe fourni et on compare avec le hash stocké
+        # On ne compare jamais en clair !
 
     def to_dict(self):
-        """Retourne un dictionnaire avec les infos publiques de l'utilisateur."""
-        d = super().to_dict()  # Appelle BaseModel.to_dict() → id, created_at, updated_at
-        d.update({
-            "first_name": self.first_name,  # Ajoute prénom
-            "last_name": self.last_name,    # Ajoute nom
-            "email": self.email,            # Ajoute email
-            "is_admin": self.is_admin,      # Ajoute info admin
+        """Surcharge to_dict() de BaseModel pour ajouter les attributs de User
+        
+        IMPORTANT: password_hash n'est jamais retourné pour des raisons de sécurité
+        """
+        base = super().to_dict()
+        # Récupère le dict de base: id, created_at, updated_at
+        base.update({
+            'first_name': self.first_name,
+            'last_name': self.last_name,
+            'email': self.email,
+            'is_admin': self.is_admin
+            # password_hash volontairement absent !
         })
-        return d  # Retourne le dictionnaire prêt pour JSON/API
+        return base

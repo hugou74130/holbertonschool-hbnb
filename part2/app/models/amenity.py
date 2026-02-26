@@ -1,32 +1,49 @@
-from part2.app.models.base_model import BaseModel
-
+from app.models.base_model import BaseModel
 
 class Amenity(BaseModel):
-    # Représente un équipement (Wi-Fi, Parking…)
-    # Relation : liée à plusieurs Places (many-to-many)
+    # Amenity hérite de BaseModel
+    # Représente un équipement disponible dans un lieu
+    # ex: "Wi-Fi", "Parking", "Piscine"
 
     def __init__(self, name, description=""):
-        """Initialise une amenity avec un nom validé."""
         super().__init__()
-        self.name = name    # passe par le setter (validation)
+        # Appelle le constructeur de BaseModel
+
+        if not name or len(name) > 50:
+            raise ValueError("name is required and must be under 50 characters")
+            # not name = True si name est None ou ""
+
+        self.name = name
         self.description = description
+        # description est optionnelle, vide par défaut
 
-    @property
-    def name(self):
-        """Retourne le nom de l'amenity."""
-        return self._name
+    def create(self):
+        """Marque l'amenity comme créée"""
+        self.crud_profile = "created"
+        self.save()
 
-    @name.setter
-    def name(self, value):
-        """Valide que le nom est non vide et max 50 caractères."""
-        if not value or not isinstance(value, str):
-            raise ValueError("name is required.")
-        if len(value) > 50:
-            raise ValueError("name must be 50 characters or fewer.")
-        self._name = value.strip()
+    def update(self, data):
+        """Met à jour uniquement les champs autorisés
+        
+        Surcharge update() de BaseModel pour filtrer les champs
+        """
+        allowed = ['name', 'description']
+        filtered = {k: v for k, v in data.items() if k in allowed}
+        # Ne garde que name et description
+        super().update(filtered)
+        # Appelle BaseModel.update() avec les données filtrées
+
+    def delete(self):
+        """Marque l'amenity comme supprimée"""
+        self.crud_profile = "deleted"
+        self.save()
 
     def to_dict(self):
-        """Retourne un dict avec le nom et la description."""
-        d = super().to_dict()
-        d.update({"name": self.name, "description": self.description})
-        return d
+        """Surcharge to_dict() pour ajouter les attributs de Amenity"""
+        base = super().to_dict()
+        # Récupère id, created_at, updated_at
+        base.update({
+            'name': self.name,
+            'description': self.description
+        })
+        return base
