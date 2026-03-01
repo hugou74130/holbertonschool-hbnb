@@ -86,7 +86,11 @@ class PlaceResource(Resource):
     @api.response(404, 'Place not found')
     def get(self, place_id):
         """Get place details by ID including owner and amenities"""
-        place = facade.get_place(place_id)
+        try:
+            place = facade.get_place(place_id)
+        except NotImplementedError:
+            # Le service de récupération de lieu n'est pas encore implémenté
+            return {'error': 'Place retrieval not implemented'}, 501
         # get_place() retourne None si le lieu n'existe pas
 
         if not place:
