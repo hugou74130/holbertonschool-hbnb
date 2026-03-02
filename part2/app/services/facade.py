@@ -4,18 +4,12 @@ from typing import Any
 
 from app.models.entities import Amenity, Place, Review, User
 
-
 from app.persistence.repository import InMemoryRepository
 
 
 class HBnBFacade:
-    """Business logic facade backed by repositories.
-
-    All methods previously implemented with in-memory dicts have been
-    updated to use :class:`InMemoryRepository`.  This centralizes data
-    access and makes it easier to swap out the storage implementation in
-    the future.
-    """
+    # Centralise la logique métier de l'application, en utilisant les repositories
+    # pour gérer les données. Interface entre les ressources API et les données.
 
     def __init__(self):
         self.user_repo = InMemoryRepository()
@@ -23,167 +17,162 @@ class HBnBFacade:
         self.review_repo = InMemoryRepository()
         self.amenity_repo = InMemoryRepository()
 
-    # --- user operations -------------------------------------------------
+    # ==================================================================== #
+    #  Users                                                               #
+    # ==================================================================== #
+    def get_user(self, user_id):
+        return self.user_repo.get(user_id)
 
-    def create_user(self, user_data: dict[str, Any]) -> User:
+    def get_users(self):
+        return self.user_repo.get_all()
+
+    def create_user(self, user_data):
         """Create a new user and persist it.
 
         Raises ValueError for missing fields or duplicate email.
         """
-        email = user_data.get("email")
-        password = user_data.get("password")
+        email = user_data.get('email')
+        password = user_data.get('password')
         if not email or not password:
-            raise ValueError("email and password are required")
-        existing = self.user_repo.get_by_attribute("email", email)
+            raise ValueError('email and password are required')
+        existing = self.user_repo.get_by_attribute('email', email)
         if existing:
-            raise ValueError("email already in use")
+            raise ValueError('email already in use')
+        from app.models.user import User
         user = User(**user_data)
         self.user_repo.add(user)
         return user
 
-    def list_users(self) -> list[User]:
-        return self.user_repo.get_all()
-
-    def get_user(self, user_id: str) -> User | None:
-        return self.user_repo.get(user_id)
-
-    def update_user(self, user_id: str, data: dict[str, Any]) -> User | None:
+    def update_user(self, user_id, data):
         user = self.get_user(user_id)
         if not user:
             return None
-        # email should not be changed through this method
-        data = {k: v for k, v in data.items() if k != "email"}
+        data = {k: v for k, v in data.items() if k != 'email'}
         user.update(data)
         return user
 
-    # --- amenity operations ------------------------------------------------
-
-    def create_amenity(self, data: dict[str, Any]) -> Amenity:
-        amenity = Amenity(**data)
+    # ==================================================================== #
+    #  Amenities                                                           #
+    # ==================================================================== #
+    def create_amenity(self, amenity_data):
+        """Create a new amenity and persist it.
+        Raises ValueError if name is missing.
+        """
+        if not amenity_data.get('name'):
+            raise ValueError('name is required')
+        from app.models.amenity import Amenity
+        amenity = Amenity(**amenity_data)
         self.amenity_repo.add(amenity)
         return amenity
 
-    def list_amenities(self) -> list[Amenity]:
-        return self.amenity_repo.get_all()
-
-    def get_amenity(self, amenity_id: str) -> Amenity | None:
+    def get_amenity(self, amenity_id):
         return self.amenity_repo.get(amenity_id)
 
-    # --- place operations --------------------------------------------------
+    def get_all_amenities(self):
+        return self.amenity_repo.get_all()
 
-    def create_place(self, data: dict[str, Any]) -> Place:
-        owner = self.get_user(data.get("owner_id", ""))
-        if owner is None:
-            raise ValueError("owner_id does not reference an existing user")
+    def update_amenity(self, amenity_id, data):
+        amenity = self.get_amenity(amenity_id)
+        if not amenity:
+            return None
+        amenity.update(data)
+        return amenity
 
-        amenity_ids = data.get("amenity_ids", [])
-        for amenity_id in amenity_ids:
-            if self.get_amenity(amenity_id) is None:
-                raise ValueError(f"amenity_id '{amenity_id}' was not found")
+    # ==================================================================== #
+    #  Places                                                               #
+    # ==================================================================== #
+    def create_place(self, place_data):
+        """Create a new place and persist it.
+        Raises ValueError if owner not found or required fields are missing.
+        """
+        owner_id = place_data.get('owner_id')
+        owner = self.user_repo.get(owner_id)
+        if not owner:
+            raise ValueError('owner not found')
 
-        place = Place(**data)
+        payload = dict(place_data)
+        payload.pop('owner_id', None)
+
+        amenities = []
+        for amenity_id in payload.pop('amenity_ids', []):
+            amenity = self.amenity_repo.get(amenity_id)
+            if not amenity:
+                raise ValueError(f'amenity {amenity_id} not found')
+            amenities.append(amenity)
+
+        from app.models.place import Place
+        place = Place(owner=owner, **payload)
+        for amenity in amenities:
+            place.add_amenity(amenity)
         self.place_repo.add(place)
         return place
 
-    def list_places(self) -> list[Place]:
-        return self.place_repo.get_all()
-
-    def get_place(self, place_id: str) -> Place | None:
+    def get_place(self, place_id):
         return self.place_repo.get(place_id)
 
-    # --- review operations -------------------------------------------------
+    def get_all_places(self):
+        return self.place_repo.get_all()
 
-    def create_review(self, data: dict[str, Any]) -> Review:
-        user_id = data.get("user_id", "")
-        place_id = data.get("place_id", "")
-        if self.get_user(user_id) is None:
-            raise ValueError("user_id does not reference an existing user")
+    def update_place(self, place_id, data):
         place = self.get_place(place_id)
-        if place is None:
-            raise ValueError("place_id does not reference an existing place")
+        if not place:
+            return None
+        # owner_id is immutable after creation, same logic as email on users
+        data = {k: v for k, v in data.items() if k != 'owner_id'}
+        place.update(data)
+        return place
 
-        review = Review(**data)
+    # ==================================================================== #
+    #  Reviews                                                              #
+    # ==================================================================== #
+    def create_review(self, review_data):
+        """Create a new review and persist it.
+        Raises ValueError if user or place not found, or fields are missing.
+        """
+        user_id = review_data.get('user_id')
+        place_id = review_data.get('place_id')
+
+        user = self.user_repo.get(user_id)
+        if not user:
+            raise ValueError('user not found')
+
+        place = self.place_repo.get(place_id)
+        if not place:
+            raise ValueError('place not found')
+
+        payload = dict(review_data)
+        payload.pop('user_id', None)
+        payload.pop('place_id', None)
+
+        from app.models.review import Review
+        review = Review(place=place, user=user, **payload)
+        place.add_review(review)
         self.review_repo.add(review)
-        # update the place object as before
-        place.review_ids.append(review.id)
-        place.touch()
         return review
 
-    def list_reviews(self) -> list[Review]:
-        return self.review_repo.get_all()
-
-    def list_reviews_by_place(self, place_id: str) -> list[Review]:
-        place = self.get_place(place_id)
-        if place is None:
-            raise ValueError("place was not found")
-        return [
-            self.review_repo.get(review_id)
-            for review_id in place.review_ids
-            if self.review_repo.get(review_id)
-        ]
-
-    def get_review(self, review_id: str) -> Review | None:
+    def get_review(self, review_id):
         return self.review_repo.get(review_id)
 
-    def update_review(self, review_id: str, data: dict[str, Any]) -> Review | None:
+    def get_all_reviews(self):
+        return self.review_repo.get_all()
+
+    def get_reviews_by_place(self, place_id):
+        return [
+            review for review in self.review_repo.get_all()
+            if review.place and review.place.id == place_id
+        ]
+
+    def update_review(self, review_id, data):
         review = self.get_review(review_id)
-        if review is None:
+        if not review:
             return None
-        text = data.get("text")
-        if text is not None:
-            if not text.strip():
-                raise ValueError("text is required")
-            review.text = text
-            review.touch()
+        # user_id and place_id are immutable after creation
+        data = {k: v for k, v in data.items() if k not in ('user_id', 'place_id')}
+        review.update(data)
         return review
 
-    def delete_review(self, review_id: str) -> bool:
-        review = self.get_review(review_id)
-        if review is None:
-            return False
-        place = self.get_place(review.place_id)
-        if place and review.id in place.review_ids:
-            place.review_ids.remove(review.id)
-            place.touch()
-        self.review_repo.delete(review_id)
-        return True
-
-    # --- serialization helpers -------------------------------------------
-
-    def serialize_review(self, review: Review) -> dict[str, Any]:
-        data = review.to_dict()
-        user = self.get_user(review.user_id)
-        place = self.get_place(review.place_id)
-        data["user"] = {
-            "id": user.id,
-            "first_name": user.first_name,
-            "last_name": user.last_name,
-        } if user else None
-        data["place"] = {
-            "id": place.id,
-            "title": place.title,
-        } if place else None
-        return data
-
-    def serialize_place(self, place: Place) -> dict[str, Any]:
-        data = place.to_dict()
-        owner = self.get_user(place.owner_id)
-        data["owner"] = {
-            "id": owner.id,
-            "first_name": owner.first_name,
-            "last_name": owner.last_name,
-        } if owner else None
-        data["amenities"] = [
-            amenity.to_dict()
-            for amenity_id in place.amenity_ids
-            if (amenity := self.get_amenity(amenity_id))
-        ]
-        data["reviews"] = [
-            self.serialize_review(self.review_repo.get(review_id))
-            for review_id in place.review_ids
-            if self.review_repo.get(review_id)
-        ]
-        return data
+    def delete_review(self, review_id):
+        return self.review_repo.delete(review_id)
 
 
 # single shared facade instance
