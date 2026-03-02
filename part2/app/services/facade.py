@@ -1,3 +1,9 @@
+from __future__ import annotations
+
+from typing import Any
+
+from app.models.entities import Amenity, Place, Review, User
+
 from app.persistence.repository import InMemoryRepository
 
 
@@ -12,7 +18,7 @@ class HBnBFacade:
         self.amenity_repo = InMemoryRepository()
 
     # ==================================================================== #
-    #  Users                                                                #
+    #  Users                                                               #
     # ==================================================================== #
     def get_user(self, user_id):
         return self.user_repo.get(user_id)
@@ -22,13 +28,15 @@ class HBnBFacade:
 
     def create_user(self, user_data):
         """Create a new user and persist it.
+
         Raises ValueError for missing fields or duplicate email.
         """
         email = user_data.get('email')
         password = user_data.get('password')
         if not email or not password:
             raise ValueError('email and password are required')
-        if self.user_repo.get_by_attribute('email', email):
+        existing = self.user_repo.get_by_attribute('email', email)
+        if existing:
             raise ValueError('email already in use')
         from app.models.user import User
         user = User(**user_data)
@@ -44,7 +52,7 @@ class HBnBFacade:
         return user
 
     # ==================================================================== #
-    #  Amenities                                                            #
+    #  Amenities                                                           #
     # ==================================================================== #
     def create_amenity(self, amenity_data):
         """Create a new amenity and persist it.
@@ -165,3 +173,7 @@ class HBnBFacade:
 
     def delete_review(self, review_id):
         return self.review_repo.delete(review_id)
+
+
+# single shared facade instance
+facade = HBnBFacade()
