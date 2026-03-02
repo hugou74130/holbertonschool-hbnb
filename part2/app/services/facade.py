@@ -5,34 +5,71 @@ from typing import Any
 from app.models.entities import Amenity, Place, Review, User
 
 
-class HBnBFacade:
-    def __init__(self) -> None:
-        self.users: dict[str, User] = {}
-        self.amenities: dict[str, Amenity] = {}
-        self.places: dict[str, Place] = {}
-        self.reviews: dict[str, Review] = {}
+from app.persistence.repository import InMemoryRepository
 
-    def create_user(self, data: dict[str, Any]) -> User:
-        user = User(**data)
-        self.users[user.id] = user
+
+class HBnBFacade:
+    """Business logic facade backed by repositories.
+
+    All methods previously implemented with in-memory dicts have been
+    updated to use :class:`InMemoryRepository`.  This centralizes data
+    access and makes it easier to swap out the storage implementation in
+    the future.
+    """
+
+    def __init__(self):
+        self.user_repo = InMemoryRepository()
+        self.place_repo = InMemoryRepository()
+        self.review_repo = InMemoryRepository()
+        self.amenity_repo = InMemoryRepository()
+
+    # --- user operations -------------------------------------------------
+
+    def create_user(self, user_data: dict[str, Any]) -> User:
+        """Create a new user and persist it.
+
+        Raises ValueError for missing fields or duplicate email.
+        """
+        email = user_data.get("email")
+        password = user_data.get("password")
+        if not email or not password:
+            raise ValueError("email and password are required")
+        existing = self.user_repo.get_by_attribute("email", email)
+        if existing:
+            raise ValueError("email already in use")
+        user = User(**user_data)
+        self.user_repo.add(user)
         return user
 
     def list_users(self) -> list[User]:
-        return list(self.users.values())
+        return self.user_repo.get_all()
 
     def get_user(self, user_id: str) -> User | None:
-        return self.users.get(user_id)
+        return self.user_repo.get(user_id)
+
+    def update_user(self, user_id: str, data: dict[str, Any]) -> User | None:
+        user = self.get_user(user_id)
+        if not user:
+            return None
+        # email should not be changed through this method
+        data = {k: v for k, v in data.items() if k != "email"}
+        user.update(data)
+        return user
+
+    # --- amenity operations ------------------------------------------------
 
     def create_amenity(self, data: dict[str, Any]) -> Amenity:
         amenity = Amenity(**data)
-        self.amenities[amenity.id] = amenity
+        self.amenity_repo.add(amenity)
         return amenity
 
     def list_amenities(self) -> list[Amenity]:
-        return list(self.amenities.values())
+        return self.amenity_repo.get_all()
 
     def get_amenity(self, amenity_id: str) -> Amenity | None:
-        return self.amenities.get(amenity_id)
+        return self.amenity_repo.get(amenity_id)
+
+    # --- place operations --------------------------------------------------
 
     def create_place(self, data: dict[str, Any]) -> Place:
         owner = self.get_user(data.get("owner_id", ""))
@@ -41,45 +78,52 @@ class HBnBFacade:
 
         amenity_ids = data.get("amenity_ids", [])
         for amenity_id in amenity_ids:
-            if amenity_id not in self.amenities:
+            if self.get_amenity(amenity_id) is None:
                 raise ValueError(f"amenity_id '{amenity_id}' was not found")
 
         place = Place(**data)
-        self.places[place.id] = place
+        self.place_repo.add(place)
         return place
 
     def list_places(self) -> list[Place]:
-        return list(self.places.values())
+        return self.place_repo.get_all()
 
     def get_place(self, place_id: str) -> Place | None:
-        return self.places.get(place_id)
+        return self.place_repo.get(place_id)
+
+    # --- review operations -------------------------------------------------
 
     def create_review(self, data: dict[str, Any]) -> Review:
         user_id = data.get("user_id", "")
         place_id = data.get("place_id", "")
-        if user_id not in self.users:
+        if self.get_user(user_id) is None:
             raise ValueError("user_id does not reference an existing user")
         place = self.get_place(place_id)
         if place is None:
             raise ValueError("place_id does not reference an existing place")
 
         review = Review(**data)
-        self.reviews[review.id] = review
+        self.review_repo.add(review)
+        # update the place object as before
         place.review_ids.append(review.id)
         place.touch()
         return review
 
     def list_reviews(self) -> list[Review]:
-        return list(self.reviews.values())
+        return self.review_repo.get_all()
 
     def list_reviews_by_place(self, place_id: str) -> list[Review]:
         place = self.get_place(place_id)
         if place is None:
             raise ValueError("place was not found")
-        return [self.reviews[review_id] for review_id in place.review_ids if review_id in self.reviews]
+        return [
+            self.review_repo.get(review_id)
+            for review_id in place.review_ids
+            if self.review_repo.get(review_id)
+        ]
 
     def get_review(self, review_id: str) -> Review | None:
-        return self.reviews.get(review_id)
+        return self.review_repo.get(review_id)
 
     def update_review(self, review_id: str, data: dict[str, Any]) -> Review | None:
         review = self.get_review(review_id)
@@ -101,8 +145,10 @@ class HBnBFacade:
         if place and review.id in place.review_ids:
             place.review_ids.remove(review.id)
             place.touch()
-        del self.reviews[review_id]
+        self.review_repo.delete(review_id)
         return True
+
+    # --- serialization helpers -------------------------------------------
 
     def serialize_review(self, review: Review) -> dict[str, Any]:
         data = review.to_dict()
@@ -133,11 +179,12 @@ class HBnBFacade:
             if (amenity := self.get_amenity(amenity_id))
         ]
         data["reviews"] = [
-            self.serialize_review(self.reviews[review_id])
+            self.serialize_review(self.review_repo.get(review_id))
             for review_id in place.review_ids
-            if review_id in self.reviews
+            if self.review_repo.get(review_id)
         ]
         return data
 
 
+# single shared facade instance
 facade = HBnBFacade()

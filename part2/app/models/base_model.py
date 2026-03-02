@@ -19,3 +19,38 @@ class BaseModel:
         payload["created_at"] = self.created_at.isoformat()
         payload["updated_at"] = self.updated_at.isoformat()
         return payload
+import uuid
+from datetime import datetime
+
+class BaseModel:
+    def __init__(self):
+        self.id = str(uuid.uuid4())
+        # uuid.uuid4() génère un identifiant unique universel (ex: "3fa85f64-5717-4562-b3fc-2c963f66afa6")
+        # str() le convertit en chaîne car le repo stocke des strings
+        
+        self.created_at = datetime.now()
+        # datetime.now() capture la date et l'heure exacte de la création
+        
+        self.updated_at = datetime.now()
+        # Même chose, sera mis à jour à chaque modification
+
+    def save(self):
+        """Appelé à chaque modification pour mettre à jour updated_at"""
+        self.updated_at = datetime.now()
+
+    def update(self, data):
+        """Met à jour les attributs depuis un dictionnaire
+        
+        Exemple: user.update({"first_name": "Jane"})
+        """
+        for key, value in data.items():
+            # data.items() retourne des paires (clé, valeur)
+            # ex: [("first_name", "Jane"), ("email", "jane@x.com")]
+            
+            if hasattr(self, key):
+                # hasattr vérifie que l'attribut existe sur l'objet
+                # Sécurité : évite d'ajouter des attributs inconnus
+                setattr(self, key, value)
+                # setattr(obj, "first_name", "Jane") équivaut à obj.first_name = "Jane"
+        
+        self.save()  # Met à jour updated_at
