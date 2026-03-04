@@ -130,9 +130,9 @@ class PlaceResource(Resource):
             updated_place = facade.update_place(place_id, place_data)
             # update_place() retourne None si le lieu n'existe pas
         except ValueError as e:
-            return {'error': str(e)}, 400
+            return {'message': str(e)}, 400
 
         if not updated_place:
-            return {'error': 'Place not found'}, 404
+            return {'message': 'Place not found'}, 404
 
         return {'message': 'Place updated successfully'}, 200

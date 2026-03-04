@@ -45,7 +45,12 @@ class UsersAPITestCase(unittest.TestCase):# section pour tester les endpoints de
         self.assertEqual(resp.status_code, 404)
 
     def test_duplicate_email(self):
-        payload = {'email': 'dup@b.com', 'password': 'pass1234'}
+        payload = {
+            'email': 'dup@b.com',
+            'password': 'pass1234',
+            'first_name': 'Alice',
+            'last_name': 'Smith',
+        }
         resp1 = self.client.post('/api/v1/users/', json=payload)
         self.assertEqual(resp1.status_code, 201)
         resp2 = self.client.post('/api/v1/users/', json=payload)

@@ -1,7 +1,10 @@
 from app.models.base_model import BaseModel
 # On importe BaseModel pour que User puisse en hériter
 import hashlib
+import re
 # hashlib est un module Python standard pour hacher des données (mots de passe)
+
+_EMAIL_RE = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
 
 class User(BaseModel):
     # User hérite de BaseModel
@@ -20,9 +23,9 @@ class User(BaseModel):
         if not last_name or len(last_name) > 50:
             raise ValueError("last_name is required and must be under 50 characters")
 
-        if not email or "@" not in email:
+        if not email or not _EMAIL_RE.match(email):
             raise ValueError("A valid email is required")
-            # "@" not in email vérifie qu'il y a bien un @ dans l'email
+            # regex vérifie le format : local@domain.tld
 
         if not password:
             raise ValueError("password is required")
