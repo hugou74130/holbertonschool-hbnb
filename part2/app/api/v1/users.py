@@ -44,8 +44,8 @@ user_model = api.model('User', {
 create_user_model = api.model('UserCreate', {
     'email': fields.String(required=True),
     'password': fields.String(required=True),
-    'first_name': fields.String(),
-    'last_name': fields.String(),
+    'first_name': fields.String(required=True),
+    'last_name': fields.String(required=True),
 })
 
 update_user_model = api.model('UserUpdate', {

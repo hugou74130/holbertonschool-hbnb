@@ -13,9 +13,9 @@ class Place(BaseModel):
         if not title or len(title) > 100:
             raise ValueError("title is required and must be under 100 characters")
 
-        if price < 0:
-            raise ValueError("price must be a positive value")
-            # Un prix ne peut pas être négatif
+        if price <= 0:
+            raise ValueError("price must be a positive value (> 0)")
+            # Un prix doit être strictement positif
 
         if not -90.0 <= latitude <= 90.0:
             raise ValueError("latitude must be between -90.0 and 90.0")

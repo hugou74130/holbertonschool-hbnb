@@ -1,3 +1,5 @@
+<<<<<<< HEAD
+=======
 from flask import request
 from flask_restx import Namespace, Resource
 
@@ -37,6 +39,7 @@ class PlaceReviewCollection(Resource):
         except ValueError:
             return {"error": "Place not found"}, 404
         return [facade.serialize_review(review) for review in reviews], 200
+>>>>>>> dev
 from flask_restx import Namespace, Resource, fields
 from app.services import facade
 
@@ -169,9 +172,16 @@ class PlaceResource(Resource):
             updated_place = facade.update_place(place_id, place_data)
             # update_place() retourne None si le lieu n'existe pas
         except ValueError as e:
+<<<<<<< HEAD
+            return {'message': str(e)}, 400
+
+        if not updated_place:
+            return {'message': 'Place not found'}, 404
+=======
             return {'error': str(e)}, 400
 
         if not updated_place:
             return {'error': 'Place not found'}, 404
+>>>>>>> dev
 
         return {'message': 'Place updated successfully'}, 200

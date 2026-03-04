@@ -12,8 +12,11 @@ def create_app(config_name='development'):
     path, and registers the relevant namespaces.
     """
     app = Flask(__name__)
+<<<<<<< HEAD
     api = Api(app, version='1.0', title='HBnB API',
             description='HBnB Application API', doc='/api/v1/')
+=======
+>>>>>>> dev
 
     # configuration
     app.config.from_object(config[config_name])
@@ -32,6 +35,7 @@ def create_app(config_name='development'):
     api.add_namespace(users_ns, path='/api/v1/users')
 
     from app.api.v1.places import api as places_ns
+<<<<<<< HEAD
     # On importe le namespace places depuis api/v1/places.py
     api.add_namespace(places_ns, path='/api/v1/places')
     # Tous les endpoints de places.py seront accessibles via /api/v1/places
@@ -41,5 +45,8 @@ def create_app(config_name='development'):
 
     from app.api.v1.reviews import api as reviews_ns
     api.add_namespace(reviews_ns, path='/api/v1/reviews')
+=======
+    api.add_namespace(places_ns, path='/api/v1/places')
+>>>>>>> dev
 
     return app

@@ -1,90 +1,71 @@
-from flask import request
-from flask_restx import Namespace, Resource
-
-from app.services.facade import facade
-
-api = Namespace("amenities", description="Amenity operations")
-
-
-@api.route("/")
-class AmenitiesCollection(Resource):
-    def get(self):
-        return [amenity.to_dict() for amenity in facade.list_amenities()], 200
-
-    def post(self):
-        payload = request.get_json(silent=True) or {}
-        try:
-            amenity = facade.create_amenity(payload)
-        except ValueError as exc:
-            return {"error": str(exc)}, 400
 from flask_restx import Namespace, Resource, fields
 from app.services import facade
 
-api = Namespace("amenities", description="Amenity management operations")
+api = Namespace('amenities', description='Amenity operations')
 
-amenity_input_model = api.model(
-    "AmenityInput",
-    {
-        "name": fields.String(required=True, description="Amenity name"),
-        "description": fields.String(required=False, description="Amenity description"),
-    },
-)
+amenity_model = api.model('Amenity', {
+    'id': fields.String(readonly=True),
+    'name': fields.String(required=True, description='Amenity name (max 50 chars)'),
+    'description': fields.String(description='Optional description'),
+    'created_at': fields.String(readonly=True),
+    'updated_at': fields.String(readonly=True),
+})
 
-amenity_output_model = api.model(
-    "Amenity",
-    {
-        "id": fields.String(readonly=True),
-        "name": fields.String(),
-        "description": fields.String(),
-        "created_at": fields.String(readonly=True),
-        "updated_at": fields.String(readonly=True),
-    },
-)
+create_amenity_model = api.model('AmenityCreate', {
+    'name': fields.String(required=True),
+    'description': fields.String(),
+})
+
+update_amenity_model = api.model('AmenityUpdate', {
+    'name': fields.String(),
+    'description': fields.String(),
+})
 
 
-@api.route("/")
+@api.route('/')
 class AmenityList(Resource):
-    @api.marshal_list_with(amenity_output_model)
-    def get(self):
-        amenities = facade.get_all_amenities()
-        return [amenity.to_dict() for amenity in amenities], 200
 
-    @api.expect(amenity_input_model)
-    @api.response(201, "Amenity created")
-    @api.response(400, "Bad request")
+    @api.marshal_list_with(amenity_model)
+    @api.response(200, 'List of amenities')
+    def get(self):
+        """Retrieve all amenities"""
+        return [a.to_dict() for a in facade.get_all_amenities()], 200
+
+    @api.expect(create_amenity_model, validate=True)
+    @api.response(201, 'Amenity created', amenity_model)
+    @api.response(400, 'Invalid input data')
     def post(self):
-        data = api.payload or {}
+        """Create a new amenity"""
         try:
-            amenity = facade.create_amenity(data)
-        except ValueError as exc:
-            api.abort(400, str(exc))
+            amenity = facade.create_amenity(api.payload)
+        except ValueError as e:
+            return {'message': str(e)}, 400
         return amenity.to_dict(), 201
 
 
-@api.route("/<string:amenity_id>")
-class AmenityItem(Resource):
-    def get(self, amenity_id: str):
-        amenity = facade.get_amenity(amenity_id)
-        if amenity is None:
-            return {"error": "Amenity not found"}, 404
-        return amenity.to_dict(), 200
-@api.param("amenity_id", "Amenity identifier")
+@api.route('/<string:amenity_id>')
+@api.param('amenity_id', 'The amenity identifier')
 class AmenityResource(Resource):
-    @api.marshal_with(amenity_output_model)
-    @api.response(404, "Amenity not found")
+
+    @api.marshal_with(amenity_model)
+    @api.response(404, 'Amenity not found')
     def get(self, amenity_id):
+        """Get an amenity by ID"""
         amenity = facade.get_amenity(amenity_id)
         if not amenity:
-            api.abort(404, "Amenity not found")
+            api.abort(404, 'Amenity not found')
         return amenity.to_dict(), 200
 
-    @api.expect(amenity_input_model)
-    @api.response(200, "Amenity updated")
-    @api.response(404, "Amenity not found")
-    @api.response(400, "Bad request")
+    @api.expect(update_amenity_model, validate=True)
+    @api.response(200, 'Amenity updated', amenity_model)
+    @api.response(404, 'Amenity not found')
+    @api.response(400, 'Invalid input data')
     def put(self, amenity_id):
-        data = api.payload or {}
-        amenity = facade.update_amenity(amenity_id, data)
+        """Update an amenity"""
+        try:
+            amenity = facade.update_amenity(amenity_id, api.payload)
+        except ValueError as e:
+            return {'message': str(e)}, 400
         if not amenity:
-            api.abort(404, "Amenity not found")
+            api.abort(404, 'Amenity not found')
         return amenity.to_dict(), 200
