@@ -1,6 +1,16 @@
+from __future__ import annotations
+
+from typing import Any
+
+from app.models.entities import Amenity, Place, Review, User
+
 from app.persistence.repository import InMemoryRepository
 
-class HBnBFacade: # section pour centraliser la logique métier de l'application, en utilisant les repositories pour gérer les données. Cette classe servira d'interface entre les ressources API et les données, en fournissant des méthodes pour créer, lire, mettre à jour et supprimer les différentes entités de l'application (utilisateurs, places, reviews, amenities).
+
+class HBnBFacade:
+    # Centralise la logique métier de l'application, en utilisant les repositories
+    # pour gérer les données. Interface entre les ressources API et les données.
+
     def __init__(self):
         self.user_repo = InMemoryRepository()
         self.place_repo = InMemoryRepository()
