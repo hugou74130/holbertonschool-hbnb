@@ -10,13 +10,13 @@ Les nombres sont dans une plage valide (ex: note entre 1 et 5)
 Étape 2 — Tester avec cURL
 Pour chaque endpoint, lancez des requêtes dans votre terminal. Par exemple :
 bash# Créer un utilisateur (cas réussi)
-curl -X POST http://localhost:5000/api/users \
+curl -X POST http://localhost:5000/api/users/
   -H "Content-Type: application/json" \
   -d '{"name": "Alice", "email": "alice@example.com"}'
 
 # Cas d'erreur (champ manquant)
-curl -X POST http://localhost:5000/api/users \
-  -H "Content-Type: application/json" \
+curl -X POST http://localhost:5000/api/users/
+  -H "Content-Type: application/json"
   -d '{"name": ""}'
 
 Étape 3 — Écrire des tests unitaires
