@@ -8,8 +8,8 @@ from app.persistence.repository import InMemoryRepository
 
 
 class HBnBFacade:
-    # Centralise la logique métier de l'application, en utilisant les repositories
-    # pour gérer les données. Interface entre les ressources API et les données.
+    # Centralizes the business logic of the application, using repositories
+    # to manage data. Interface between API resources and data.
 
     def __init__(self):
         self.user_repo = InMemoryRepository()
@@ -43,8 +43,8 @@ class HBnBFacade:
         # Allow explicit is_admin flag when provided
         from app.models.user import User
         user = User(**user_data)
-        # Le hash bcrypt est appliqué dans User.__init__() via hash_password()
-        # Pas besoin de le faire ici, le modèle s'en charge automatiquement
+        # The bcrypt hash is applied in User.__init__() via hash_password()
+        # No need to do it here, the model handles it automatically
         self.user_repo.add(user)
         return user
 
@@ -52,8 +52,8 @@ class HBnBFacade:
         user = self.get_user(user_id)
         if not user:
             return None
-        # Si un nouveau mot de passe est fourni, on le re-hashe via bcrypt
-        # On ne le passe PAS dans update() qui écrirait le hash en clair
+        # If a new password is provided, re-hash it via bcrypt
+        # Do NOT pass it to update() which would write the hash as plain text
         if 'password' in data:
             user.hash_password(data.pop('password'))
 

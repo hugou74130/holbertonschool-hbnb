@@ -17,7 +17,7 @@ user_model = api.model('User', {
 
 create_user_model = api.model('UserCreate', {
     'email':      fields.String(required=True),
-    'password':   fields.String(required=True, description='Plain-text, sera hashé avant stockage'),
+    'password':   fields.String(required=True, description='Plain-text, will be hashed before storage'),
     'first_name': fields.String(required=True),
     'last_name':  fields.String(required=True),
 })
@@ -31,7 +31,7 @@ admin_update_user_model = api.model('AdminUserUpdate', {
     'first_name': fields.String(),
     'last_name':  fields.String(),
     'email':      fields.String(),
-    'password':   fields.String(description='Nouveau mot de passe, sera hashé avant stockage'),
+    'password':   fields.String(description='New password, will be hashed before storage'),
 })
 
 login_model = api.model('UserLogin', {

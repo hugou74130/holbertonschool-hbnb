@@ -5,7 +5,7 @@ from app.services import facade
 
 api = Namespace('places', description='Place operations')
 
-# Modèle pour la validation des données en entrée (POST / PUT)
+# Model for input data validation (POST / PUT)
 place_model = api.model('Place', {
     'title': fields.String(required=True, description='Title of the place'),
     'description': fields.String(description='Description of the place'),
@@ -36,21 +36,21 @@ class PlaceList(Resource):
         if not is_admin and place_data.get('owner_id') != user_id:
             return {'error': 'Unauthorized action'}, 403
 
-        # api.payload contient le JSON envoyé par le client
+        # api.payload contains the JSON sent by the client
 
-        # Vérifie que la méthode de création de place est disponible dans la facade
+        # Check that the place creation method is available in the facade
         create_place_fn = getattr(facade, "create_place", None)
         if create_place_fn is None:
-            # Fonctionnalité non encore implémentée côté service/facade
+            # Feature not yet implemented in the service/facade layer
             return {'error': 'Place creation not implemented in service layer'}, 501
 
         try:
             new_place = create_place_fn(place_data)
-            # La facade valide owner_id, price, latitude, longitude
-            # et lève ValueError si quelque chose est invalide
+            # The facade validates owner_id, price, latitude, longitude
+            # and raises ValueError if something is invalid
         except ValueError as e:
             return {'message': str(e)}, 400
-            # On retourne l'erreur avec un code 400 Bad Request
+            # Return the error with a 400 Bad Request code
 
         return {
             'id': new_place.id,
@@ -60,17 +60,17 @@ class PlaceList(Resource):
             'latitude': new_place.latitude,
             'longitude': new_place.longitude,
             'owner_id': new_place.owner.id
-            # On retourne l'id du owner, pas l'objet entier
+            # Return the owner id, not the full object
         }, 201
 
     @api.response(200, 'List of places retrieved successfully')
     def get(self):
         """Retrieve a list of all places"""
         if not hasattr(facade, 'get_all_places'):
-            # La méthode n'est pas encore implémentée dans la facade
+            # The method is not yet implemented in the facade
             return {'error': 'Listing places is not implemented in the service layer'}, 501
         places = facade.get_all_places()
-        # get_all_places() retourne une liste de tous les objets Place
+        # get_all_places() returns a list of all Place objects
 
         return [
             {
@@ -78,11 +78,11 @@ class PlaceList(Resource):
                 'title': place.title,
                 'latitude': place.latitude,
                 'longitude': place.longitude
-                # La liste retourne uniquement les infos essentielles
-                # Le détail complet est disponible via GET /<place_id>
+                # The list returns only essential information
+                # Full details are available via GET /<place_id>
             }
             for place in places
-            # Compréhension de liste : transforme chaque Place en dict
+            # List comprehension: transforms each Place into a dict
         ], 200
 
 
@@ -96,9 +96,9 @@ class PlaceResource(Resource):
         try:
             place = facade.get_place(place_id)
         except NotImplementedError:
-            # Le service de récupération de lieu n'est pas encore implémenté
+            # The place retrieval service is not yet implemented
             return {'error': 'Place retrieval not implemented'}, 501
-        # get_place() retourne None si le lieu n'existe pas
+        # get_place() returns None if the place does not exist
 
         if not place:
             api.abort(404, 'Place not found')
@@ -111,21 +111,21 @@ class PlaceResource(Resource):
             'latitude': place.latitude,
             'longitude': place.longitude,
             'owner': {
-                # On retourne l'objet owner complet (pas juste l'id)
-                # La consigne demande first_name, last_name, email
+                # Return the full owner object (not just the id)
+                # The specification requires first_name, last_name, email
                 'id': place.owner.id,
                 'first_name': place.owner.first_name,
                 'last_name': place.owner.last_name,
                 'email': place.owner.email
             },
             'amenities': [
-                # On retourne la liste des amenities complètes (id + name)
+                # Return the full list of amenities (id + name)
                 {
                     'id': amenity.id,
                     'name': amenity.name
                 }
                 for amenity in place.amenities
-                # Compréhension de liste : transforme chaque Amenity en dict
+                # List comprehension: transforms each Amenity into a dict
             ]
         }, 200
 
@@ -153,11 +153,11 @@ class PlaceResource(Resource):
             return {'error': 'Unauthorized action'}, 403
 
         place_data = api.payload
-        # api.payload contient le JSON envoyé par le client
+        # api.payload contains the JSON sent by the client
 
         try:
             updated_place = facade.update_place(place_id, place_data)
-            # update_place() retourne None si le lieu n'existe pas
+            # update_place() returns None if the place does not exist
         except ValueError as e:
             return {'message': str(e)}, 400
 
