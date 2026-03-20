@@ -11,7 +11,6 @@ class Amenity(BaseModel):
     name        = db.Column(db.String(50),  nullable=False, unique=True)
     description = db.Column(db.String(256), nullable=True)
 
-    # On peut donc accéder à amenity.places directement
 
     def __init__(self, name, description=""):
         super().__init__()
