@@ -32,9 +32,18 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
     }
+
+    /* ── Place details page ─────────────────────────────────────────── */
+    const placeDetails = document.getElementById('place-details');
+    if (placeDetails) {
+        const placeId = getPlaceIdFromURL();
+        if (placeId) {
+            checkAuthenticationPlace(placeId);
+        }
+    }
 });
 
-/* ── Authentication ─────────────────────────────────────────────────── */
+/* ══ Helpers ════════════════════════════════════════════════════════════ */
 
 function getCookie(name) {
     const cookies = document.cookie.split(';');
@@ -45,6 +54,14 @@ function getCookie(name) {
     return null;
 }
 
+function getPlaceIdFromURL() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('id');
+}
+
+/* ══ Authentication ══════════════════════════════════════════════════════ */
+
+/* Index page: show/hide login link + fetch places */
 function checkAuthentication() {
     const token = getCookie('token');
     const loginLink = document.getElementById('login-link');
@@ -57,14 +74,29 @@ function checkAuthentication() {
     }
 }
 
-/* ── Login ──────────────────────────────────────────────────────────── */
+/* Place details page: show/hide add-review form + fetch place */
+function checkAuthenticationPlace(placeId) {
+    const token = getCookie('token');
+    const addReviewSection = document.getElementById('add-review');
+    const loginLink = document.getElementById('login-link');
+
+    if (!token) {
+        if (addReviewSection) addReviewSection.style.display = 'none';
+        if (loginLink) loginLink.style.display = 'block';
+    } else {
+        if (addReviewSection) addReviewSection.style.display = 'block';
+        if (loginLink) loginLink.style.display = 'none';
+    }
+
+    fetchPlaceDetails(token, placeId);
+}
+
+/* ══ Login ══════════════════════════════════════════════════════════════ */
 
 async function loginUser(email, password) {
-    const response = await fetch('http://127.0.0.1:5000/api/v1/users/login', {
+    const response = await fetch(`${API_URL}/api/v1/users/login`, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
     });
 
@@ -77,15 +109,15 @@ async function loginUser(email, password) {
     }
 }
 
-/* ── Places ─────────────────────────────────────────────────────────── */
+/* ══ Places (index) ═════════════════════════════════════════════════════ */
 
 async function fetchPlaces(token) {
-    const response = await fetch('http://127.0.0.1:5000/api/v1/places/', {
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const response = await fetch(`${API_URL}/api/v1/places/`, {
         method: 'GET',
-        headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-        }
+        headers
     });
 
     if (response.ok) {
@@ -103,15 +135,95 @@ function displayPlaces(places) {
     places.forEach((place) => {
         const card = document.createElement('div');
         card.classList.add('place-card');
-        card.dataset.price = place.price;
+        card.dataset.price = place.price ?? 0;
 
         card.innerHTML = `
             <h2>${place.title}</h2>
-            <p>${place.description || ''}</p>
-            <p><strong>Price per night:</strong> $${place.price}</p>
+            <p><strong>Price per night:</strong> $${place.price ?? 'N/A'}</p>
             <a href="place.html?id=${place.id}" class="details-button">View Details</a>
         `;
 
         placesList.appendChild(card);
+    });
+}
+
+/* ══ Place details ══════════════════════════════════════════════════════ */
+
+async function fetchPlaceDetails(token, placeId) {
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const response = await fetch(`${API_URL}/api/v1/places/${placeId}`, {
+        method: 'GET',
+        headers
+    });
+
+    if (response.ok) {
+        const place = await response.json();
+        displayPlaceDetails(place);
+        await fetchReviews(token, placeId);
+    } else {
+        console.error('Failed to fetch place details:', response.statusText);
+    }
+}
+
+function displayPlaceDetails(place) {
+    const placeInfo = document.querySelector('#place-details .place-info');
+    placeInfo.innerHTML = '';
+
+    const amenitiesList = place.amenities && place.amenities.length
+        ? place.amenities.map(a => `<li>${a.name}</li>`).join('')
+        : '<li>No amenities listed</li>';
+
+    placeInfo.innerHTML = `
+        <h1>${place.title}</h1>
+        <p><strong>Host:</strong> ${place.owner.first_name} ${place.owner.last_name}</p>
+        <p><strong>Price per night:</strong> $${place.price}</p>
+        <p><strong>Description:</strong> ${place.description || 'No description available'}</p>
+        <div class="amenities">
+            <h3>Amenities</h3>
+            <ul>${amenitiesList}</ul>
+        </div>
+    `;
+}
+
+async function fetchReviews(token, placeId) {
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const response = await fetch(`${API_URL}/api/v1/reviews/places/${placeId}/reviews`, {
+        method: 'GET',
+        headers
+    });
+
+    if (response.ok) {
+        const reviews = await response.json();
+        displayReviews(reviews);
+    } else {
+        console.error('Failed to fetch reviews:', response.statusText);
+    }
+}
+
+function displayReviews(reviews) {
+    const reviewsSection = document.getElementById('reviews');
+    const heading = reviewsSection.querySelector('h3');
+    reviewsSection.innerHTML = '';
+    if (heading) reviewsSection.appendChild(heading);
+
+    if (!reviews.length) {
+        const empty = document.createElement('p');
+        empty.textContent = 'No reviews yet.';
+        reviewsSection.appendChild(empty);
+        return;
+    }
+
+    reviews.forEach((review) => {
+        const card = document.createElement('div');
+        card.classList.add('review-card');
+        card.innerHTML = `
+            <p><strong>Rating:</strong> ${'★'.repeat(review.rating)}${'☆'.repeat(5 - review.rating)}</p>
+            <p>${review.text}</p>
+        `;
+        reviewsSection.appendChild(card);
     });
 }
