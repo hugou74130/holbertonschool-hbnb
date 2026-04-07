@@ -13,6 +13,10 @@
         <nav>
             <a href="index.html">Places</a>
             <a href="login.html" id="login-link" class="login-button">Login</a>
+            <span id="user-info" style="display: none;">
+                <span id="user-name" style="color: white; margin-right: 15px;"></span>
+                <a href="#" id="logout-link" class="login-button">Logout</a>
+            </span>
         </nav>
     </header>
 
@@ -31,8 +35,8 @@
         <section id="add-review" class="add-review">
             <h3>Add a Review</h3>
             <form id="review-form" class="form">
-                <label for="review-text">Review:</label>
-                <textarea id="review-text" name="review-text" rows="4" required></textarea>
+                <label for="review">Review:</label>
+                <textarea id="review" name="review" rows="4" required></textarea>
 
                 <label for="rating">Rating:</label>
                 <select id="rating" name="rating" required>
