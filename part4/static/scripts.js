@@ -45,7 +45,24 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    /* ── Add review page ────────────────────────────────────────────── */
+    /* ── Add review page (place.html inline form) ───────────────────── */
+    const placeReviewForm = document.querySelector('#place-details ~ #add-review #review-form');
+    if (placeReviewForm) {
+        placeReviewForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const token = getCookie('token');
+            if (!token) {
+                alert('Please login to submit a review');
+                return;
+            }
+            const placeId = getPlaceIdFromURL();
+            const comment = document.getElementById('review').value;
+            const rating = parseInt(document.getElementById('rating').value);
+            await submitReview(token, placeId, comment, rating);
+        });
+    }
+
+    /* ── Add review page (standalone) ───────────────────────────────── */
     const reviewForm = document.getElementById('review-form');
     if (reviewForm && !document.getElementById('place-details')) {
         const token = checkAuthenticationReview();
@@ -87,15 +104,32 @@ function getTokenPayload(token) {
 
 /* ══ Authentication ══════════════════════════════════════════════════════ */
 
+/* Index page: show/hide login link + fetch places */
 function checkAuthentication() {
     const token = getCookie('token');
     const loginLink = document.getElementById('login-link');
+    const userInfo = document.getElementById('user-info');
 
     if (!token) {
-        loginLink.style.display = 'block';
+        if (loginLink) loginLink.style.display = 'block';
+        if (userInfo) userInfo.style.display = 'none';
     } else {
-        loginLink.style.display = 'none';
+        if (loginLink) loginLink.style.display = 'none';
+        if (userInfo) userInfo.style.display = 'inline';
+        
+        // Fetch current user info
+        fetchCurrentUser(token);
         fetchPlaces(token);
+    }
+    
+    // Logout functionality
+    const logoutLink = document.getElementById('logout-link');
+    if (logoutLink) {
+        logoutLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+            window.location.href = 'login.html';
+        });
     }
 }
 
@@ -103,16 +137,32 @@ function checkAuthenticationPlace(placeId) {
     const token = getCookie('token');
     const addReviewSection = document.getElementById('add-review');
     const loginLink = document.getElementById('login-link');
+    const userInfo = document.getElementById('user-info');
 
     if (!token) {
         if (addReviewSection) addReviewSection.style.display = 'none';
         if (loginLink) loginLink.style.display = 'block';
+        if (userInfo) userInfo.style.display = 'none';
     } else {
         if (addReviewSection) addReviewSection.style.display = 'block';
         if (loginLink) loginLink.style.display = 'none';
+        if (userInfo) userInfo.style.display = 'inline';
+        
+        // Fetch current user info
+        fetchCurrentUser(token);
     }
 
     fetchPlaceDetails(token, placeId);
+    
+    // Logout functionality
+    const logoutLink = document.getElementById('logout-link');
+    if (logoutLink) {
+        logoutLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+            window.location.href = 'login.html';
+        });
+    }
 }
 
 function checkAuthenticationReview() {
@@ -125,6 +175,24 @@ function checkAuthenticationReview() {
 }
 
 /* ══ Login ══════════════════════════════════════════════════════════════ */
+
+async function fetchCurrentUser(token) {
+    const response = await fetch(`${API_URL}/api/v1/users/me`, {
+        method: 'GET',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        }
+    });
+
+    if (response.ok) {
+        const user = await response.json();
+        const userNameElement = document.getElementById('user-name');
+        if (userNameElement) {
+            userNameElement.textContent = `👋 ${user.first_name}`;
+        }
+    }
+}
 
 async function loginUser(email, password) {
     const response = await fetch(`${API_URL}/api/v1/users/login`, {
@@ -284,11 +352,21 @@ async function submitReview(token, placeId, comment, rating) {
     handleResponse(response);
 }
 
-function handleResponse(response) {
+async function handleResponse(response) {
     if (response.ok) {
         alert('Review submitted successfully!');
-        document.getElementById('review-form').reset();
+        const reviewForm = document.getElementById('review-form');
+        if (reviewForm) reviewForm.reset();
+        
+        // Refresh reviews if on place details page
+        if (document.getElementById('place-details')) {
+            const token = getCookie('token');
+            const placeId = getPlaceIdFromURL();
+            await fetchReviews(token, placeId);
+        }
     } else {
-        alert('Failed to submit review: ' + response.statusText);
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.error || errorData.message || response.statusText;
+        alert('Failed to submit review: ' + errorMessage);
     }
 }

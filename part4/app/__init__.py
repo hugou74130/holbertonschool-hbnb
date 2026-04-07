@@ -3,6 +3,7 @@ from flask_restx import Api
 from flask_bcrypt import Bcrypt
 from flask_jwt_extended import JWTManager
 from flask_sqlalchemy import SQLAlchemy
+from flask_cors import CORS
 
 from app.config import config
 
@@ -18,7 +19,7 @@ def create_app(config_name='development'):
     configuration object, instantiates an API with its own documentation
     path, and registers the relevant namespaces.
     """
-    app = Flask(__name__)
+    app = Flask(__name__, static_folder='../static', static_url_path='/static')
 
     # configuration
     app.config.from_object(config[config_name])
@@ -29,6 +30,9 @@ def create_app(config_name='development'):
     bcrypt.init_app(app)
     jwt.init_app(app)
     db.init_app(app)
+    
+    # CORS setup
+    CORS(app, resources={r"/api/*": {"origins": "*"}})
 
     # API setup
     authorizations = {

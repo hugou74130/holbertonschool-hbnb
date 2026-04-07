@@ -76,13 +76,11 @@ class PlaceList(Resource):
             {
                 'id': place.id,
                 'title': place.title,
+                'price': place.price,
                 'latitude': place.latitude,
                 'longitude': place.longitude
-                # La liste retourne uniquement les infos essentielles
-                # Le détail complet est disponible via GET /<place_id>
             }
             for place in places
-            # Compréhension de liste : transforme chaque Place en dict
         ], 200
 
 
