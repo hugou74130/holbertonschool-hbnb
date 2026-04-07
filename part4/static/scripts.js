@@ -3,9 +3,12 @@
   Client-side scripts
 */
 
-document.addEventListener('DOMContentLoaded', () => {
-    const loginForm = document.getElementById('login-form');
+const API_URL = 'http://127.0.0.1:5000';
 
+document.addEventListener('DOMContentLoaded', () => {
+
+    /* ── Login page ─────────────────────────────────────────────────── */
+    const loginForm = document.getElementById('login-form');
     if (loginForm) {
         loginForm.addEventListener('submit', async (event) => {
             event.preventDefault();
@@ -15,14 +18,14 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    /* ── Index page ─────────────────────────────────────────────────── */
     const priceFilter = document.getElementById('price-filter');
     if (priceFilter) {
         checkAuthentication();
 
         priceFilter.addEventListener('change', (event) => {
             const selected = event.target.value;
-            const places = document.querySelectorAll('.place-card');
-            places.forEach((card) => {
+            document.querySelectorAll('.place-card').forEach((card) => {
                 if (selected === 'all') {
                     card.style.display = 'block';
                 } else {
@@ -40,6 +43,20 @@ document.addEventListener('DOMContentLoaded', () => {
         if (placeId) {
             checkAuthenticationPlace(placeId);
         }
+    }
+
+    /* ── Add review page ────────────────────────────────────────────── */
+    const reviewForm = document.getElementById('review-form');
+    if (reviewForm && !document.getElementById('place-details')) {
+        const token = checkAuthenticationReview();
+        const placeId = getPlaceIdFromURL();
+
+        reviewForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const comment = document.getElementById('review').value;
+            const rating = parseInt(document.getElementById('rating').value);
+            await submitReview(token, placeId, comment, rating);
+        });
     }
 });
 
@@ -59,9 +76,17 @@ function getPlaceIdFromURL() {
     return params.get('id');
 }
 
+function getTokenPayload(token) {
+    try {
+        const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+        return JSON.parse(atob(base64));
+    } catch (e) {
+        return null;
+    }
+}
+
 /* ══ Authentication ══════════════════════════════════════════════════════ */
 
-/* Index page: show/hide login link + fetch places */
 function checkAuthentication() {
     const token = getCookie('token');
     const loginLink = document.getElementById('login-link');
@@ -74,7 +99,6 @@ function checkAuthentication() {
     }
 }
 
-/* Place details page: show/hide add-review form + fetch place */
 function checkAuthenticationPlace(placeId) {
     const token = getCookie('token');
     const addReviewSection = document.getElementById('add-review');
@@ -89,6 +113,15 @@ function checkAuthenticationPlace(placeId) {
     }
 
     fetchPlaceDetails(token, placeId);
+}
+
+function checkAuthenticationReview() {
+    const token = getCookie('token');
+    if (!token) {
+        window.location.href = 'index.html';
+        return null;
+    }
+    return token;
 }
 
 /* ══ Login ══════════════════════════════════════════════════════════════ */
@@ -222,8 +255,40 @@ function displayReviews(reviews) {
         card.classList.add('review-card');
         card.innerHTML = `
             <p><strong>Rating:</strong> ${'★'.repeat(review.rating)}${'☆'.repeat(5 - review.rating)}</p>
-            <p>${review.text}</p>
+            <p>${review.comment}</p>
         `;
         reviewsSection.appendChild(card);
     });
+}
+
+/* ══ Add review ═════════════════════════════════════════════════════════ */
+
+async function submitReview(token, placeId, comment, rating) {
+    const payload = getTokenPayload(token);
+    const userId = payload ? (payload.sub || payload.id) : null;
+
+    const response = await fetch(`${API_URL}/api/v1/reviews/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+            comment,
+            rating,
+            place_id: placeId,
+            user_id: userId
+        })
+    });
+
+    handleResponse(response);
+}
+
+function handleResponse(response) {
+    if (response.ok) {
+        alert('Review submitted successfully!');
+        document.getElementById('review-form').reset();
+    } else {
+        alert('Failed to submit review: ' + response.statusText);
+    }
 }
