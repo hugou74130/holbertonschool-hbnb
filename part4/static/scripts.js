@@ -116,11 +116,10 @@ function checkAuthentication() {
     } else {
         if (loginLink) loginLink.style.display = 'none';
         if (userInfo) userInfo.style.display = 'inline';
-        
-        // Fetch current user info
         fetchCurrentUser(token);
-        fetchPlaces(token);
     }
+
+    fetchPlaces(token);
     
     // Logout functionality
     const logoutLink = document.getElementById('logout-link');
